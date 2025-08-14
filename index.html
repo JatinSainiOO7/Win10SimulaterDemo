@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Windows 10 – Light Mode (with Snake)</title>
+  <style>
+    :root{
+      --accent:#0078d7; /* Win10 blue */
+      --accent-2:#2b88d8;
+      --bg:#f5f7fb;       /* light desktop background */
+      --bg-2:#ffffff;     /* window/content background */
+      --text:#111318;     /* main text */
+      --muted:#5b6b7d;    /* muted text */
+      --ui:#e6ebf3;       /* UI chrome (titlebars, separators) */
+      --line:#cfd7e3;     /* borders */
+      --shadow:0 10px 30px rgba(15,30,60,.12);
+      --radius:10px;
+    }
+    *{box-sizing:border-box; -webkit-user-select:none; user-select:none}
+    html,body{height:100%;}
+    body{margin:0;font-family:Segoe UI, Roboto, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;color:var(--text);background:var(--bg);overflow:hidden}
+
+    /* Desktop */
+    .desktop{position:relative;height:100vh;width:100vw;overflow:hidden;
+      background: radial-gradient(1200px 800px at 80% 20%, #eef4ff 0%, #eaf2ff 35%, #e7f0fe 60%, #eaf1ff 100%),
+                  radial-gradient(900px 600px at 15% 80%, #ffffff 0%, #f7fbff 45%, #eef5ff 80%);
+      background-attachment:fixed;
+    }
+
+    /* Desktop icons */
+    .icons{position:absolute;top:20px;left:20px;display:grid;grid-template-columns:repeat(1, 90px);gap:18px 10px}
+    .icon{width:90px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:default}
+    .icon .tile{height:58px;width:58px;border-radius:12px;background:linear-gradient(135deg,#ffffff,#eff5ff);display:grid;place-items:center;border:1px solid var(--line);box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 6px 16px rgba(30,60,120,.08)}
+    .icon .tile svg{width:30px;height:30px;fill:#2d67b3}
+    .icon span{font-size:12.5px;text-align:center;color:#2b3a55;text-shadow:0 1px 0 rgba(255,255,255,.6)}
+
+    /* Taskbar (solid, non-transparent) */
+    .taskbar{position:absolute;left:0;right:0;bottom:0;height:50px;background:#f2f4f8;display:flex;align-items:center;gap:8px;padding:0 8px;border-top:1px solid var(--line);box-shadow:0 -8px 24px rgba(10,25,60,.06)}
+    .task-left, .task-center, .task-right{display:flex;align-items:center}
+    .task-center{flex:1;gap:6px}
+
+    .btn{height:36px;min-width:36px;border-radius:10px;border:1px solid var(--line);display:grid;place-items:center;cursor:pointer;background:#fff}
+    .btn:hover{background:#f3f6fb}
+    .btn:active{transform:translateY(0.5px)}
+
+    .start-btn{width:40px}
+    .start-btn svg{width:18px;height:18px;fill:#0b57d0}
+
+    .search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:0 12px;height:36px;min-width:280px}
+    .search input{all:unset;width:100%;font-size:14px;color:#111}
+    .search svg{width:16px;height:16px;fill:#5b6b7d}
+
+    .task-item{height:36px;min-width:120px;max-width:210px;padding:0 10px;border-radius:10px;border:1px solid var(--line);display:flex;align-items:center;gap:8px;cursor:pointer;background:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,1)}
+    .task-item.active{outline:2px solid var(--accent);background:#e6f2ff}
+    .task-item img{width:16px;height:16px}
+    .task-item span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;color:#1b2a3c}
+
+    .tray{gap:4px}
+    .tray .clock{min-width:90px;text-align:right;font-size:12.5px;color:#2b3a55;line-height:1.1}
+
+    /* Start Menu (solid, non-transparent) */
+    .start{position:absolute;left:8px;bottom:56px;width:700px;height:520px;border-radius:14px;background:#ffffff;border:1px solid var(--line);display:none;box-shadow:var(--shadow);overflow:hidden}
+    .start.open{display:flex}
+    .start-col1{width:38%;border-right:1px solid var(--line);padding:12px;display:flex;flex-direction:column;gap:10px}
+    .start-col2{flex:1;padding:12px;display:flex;flex-direction:column}
+    .apps{flex:1;overflow:auto;padding-right:6px}
+    .app{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;cursor:pointer}
+    .app:hover{background:#f3f6fb}
+    .app svg{width:18px;height:18px;fill:#2d67b3}
+    .tiles{display:grid;grid-template-columns:repeat(6, 1fr);gap:8px}
+    .tile-app{height:70px;border-radius:10px;background:linear-gradient(135deg, var(--accent), var(--accent-2));display:flex;align-items:flex-end;justify-content:flex-start;padding:8px;font-weight:600;letter-spacing:.2px;color:#fff}
+    .tile-app.small{height:34px}
+    .start-footer{display:flex;align-items:center;gap:10px;border-top:1px solid var(--line);padding:10px 12px}
+    .user{display:flex;align-items:center;gap:8px}
+    .avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#8fb3ff,#43c6ff)}
+    .power{margin-left:auto}
+
+    /* Windows (solid, non-transparent) */
+    .window{position:absolute;min-width:420px;min-height:240px;width:700px;height:440px;border-radius:10px;background:var(--bg-2);border:1px solid var(--line);box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+    .titlebar{height:38px;display:flex;align-items:center;padding:0 10px;gap:8px;background:var(--ui);cursor:grab;border-bottom:1px solid var(--line)}
+    .titlebar:active{cursor:grabbing}
+    .titlebar .icon{width:16px;height:16px}
+    .title{flex:1;font-size:13.5px;color:#1a2637;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .win-controls{display:flex;gap:6px}
+    .wc{width:36px;height:28px;border-radius:6px;display:grid;place-items:center;cursor:pointer}
+    .wc:hover{background:#e9eef7}
+    .wc.close:hover{background:#ffdde1}
+
+    .content{flex:1;padding:12px;overflow:auto;background:#fff}
+    .statusbar{height:24px;padding:0 8px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px;color:#2b3a55;font-size:12px;background:#f6f8fc}
+
+    /* Explorer mock */
+    .explorer{display:grid;grid-template-columns:220px 1fr;gap:10px;height:100%}
+    .nav{border-right:1px solid var(--line);padding-right:8px}
+    .nav h4{margin:6px 0 10px;font-size:12px;color:#4b6cae;text-transform:uppercase;letter-spacing:.8px}
+    .nav .nitem{padding:6px;border-radius:6px;cursor:pointer;color:#1b2a3c}
+    .nav .nitem:hover{background:#eef3fb}
+    .files{display:grid;grid-template-columns:repeat(auto-fill, minmax(120px, 1fr));gap:10px}
+    .file{height:86px;border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:#fff}
+    .file span{font-size:12.5px}
+
+    /* Notes mock */
+    .notes textarea{width:100%;height:100%;background:#fff;color:#111;border:1px solid var(--line);outline:none;resize:none;font:14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;border-radius:8px;padding:10px}
+
+    /* Settings mock */
+    .settings{display:grid;grid-template-columns:240px 1fr;gap:10px;height:100%}
+    .settings .side .opt{padding:8px;border-radius:8px;cursor:pointer}
+    .settings .side .opt:hover{background:#eef3fb}
+    .settings .panel{border:1px solid var(--line);border-radius:10px;padding:12px;background:#fff}
+
+    /* Context menu */
+    .ctx{position:absolute;min-width:180px;background:#ffffff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);display:none;z-index:9999}
+    .ctx .row{padding:8px 12px;cursor:pointer}
+    .ctx .row:hover{background:#eef3fb}
+
+    /* Hidden helper */
+    .click{cursor:pointer}
+
+    @media (max-width:800px){
+      .start{width:94vw;height:70vh}
+      .search{min-width:160px}
+      .icons{grid-template-columns:repeat(2, 90px)}
+      .window{min-width:320px;width:85vw;height:60vh}
+    }
+  </style>
+</head>
+<body>
+  <div class="desktop" id="desktop">
+
+    <!-- Desktop Icons -->
+    <div class="icons">
+      <div class="icon click" data-open="explorer">
+        <div class="tile" title="This PC">
+          <svg viewBox="0 0 24 24"><path d="M4 6h16a2 2 0 012 2v6a2 2 0 01-2 2h-4l2 2v1H6v-1l2-2H4a2 2 0 01-2-2V8a2 2 0 012-2z"/></svg>
+        </div>
+        <span>This PC</span>
+      </div>
+      <div class="icon click" data-open="notes">
+        <div class="tile" title="Notes">
+          <svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v13a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2zm9 1v5h5"/></svg>
+        </div>
+        <span>Notes</span>
+      </div>
+      <div class="icon click" data-open="settings">
+        <div class="tile" title="Settings">
+          <svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 100 8 4 4 0 000-8zm9 4l-2.1-.3a7.1 7.1 0 00-.7-1.7l1.2-1.7-2.1-2.1-1.7 1.2a7.1 7.1 0 00-1.7-.7L12 3 10 3l-.3 2.1a7.1 7.1 0 00-1.7.7L6.3 4.6 4.2 6.7l1.2 1.7c-.3.5-.5 1.1-.7 1.7L2 10v4l2.1.3c.1.6.4 1.2.7 1.7l-1.2 1.7 2.1 2.1 1.7-1.2c.5.3 1.1.5 1.7.7L10 22h4l.3-2.1c.6-.1 1.2-.4 1.7-.7l1.7 1.2 2.1-2.1-1.2-1.7c.3-.5.5-1.1.7-1.7L21 14v-4z"/></svg>
+        </div>
+        <span>Settings</span>
+      </div>
+      <div class="icon click" data-open="snake">
+        <div class="tile" title="Snake">
+          <svg viewBox="0 0 24 24"><path d="M4 12c0-4 4-6 8-6s8 2 8 6-4 6-8 6-8-2-8-6zm8-3a3 3 0 100 6 3 3 0 000-6z"/></svg>
+        </div>
+        <span>Snake</span>
+      </div>
+      <div class="icon click" data-open="about">
+        <div class="tile" title="About">
+          <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        </div>
+        <span>About</span>
+      </div>
+    </div>
+
+    <!-- Start Menu -->
+    <div class="start" id="startMenu" aria-hidden="true">
+      <div class="start-col1">
+        <div class="search" style="border-radius:8px">
+          <svg viewBox="0 0 24 24"><path d="M10 4a6 6 0 104.472 10.056l4.736 4.736 1.414-1.414-4.736-4.736A6 6 0 0010 4z"/></svg>
+          <input placeholder="Type here to search" />
+        </div>
+        <div class="apps" id="appsList">
+          <div class="app click" data-open="explorer"><svg viewBox="0 0 24 24"><path d="M4 6h16a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2z"/></svg> File Explorer</div>
+          <div class="app click" data-open="notes"><svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v13a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg> Notes</div>
+          <div class="app click" data-open="snake"><svg viewBox="0 0 24 24"><path d="M4 12c0-4 4-6 8-6s8 2 8 6-4 6-8 6-8-2-8-6z"/></svg> Snake</div>
+          <div class="app click" data-open="settings"><svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 100 8 4 4 0 000-8z"/></svg> Settings</div>
+          <div class="app click" data-open="about"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/></svg> About Windows</div>
+        </div>
+        <div class="start-footer">
+          <div class="user"><div class="avatar"></div><div>Jatin</div></div>
+          <div class="power btn" id="powerBtn" title="Power">⏻</div>
+        </div>
+      </div>
+      <div class="start-col2">
+        <div style="font-weight:600;margin:4px 0 8px;color:#2b3a55">Pinned</div>
+        <div class="tiles">
+          <div class="tile-app click" data-open="explorer">File Explorer</div>
+          <div class="tile-app click" data-open="notes">Notes</div>
+          <div class="tile-app click" data-open="snake">Snake</div>
+          <div class="tile-app click" data-open="settings">Settings</div>
+          <div class="tile-app small click" data-open="notes">New Note</div>
+          <div class="tile-app small click" data-open="explorer">Downloads</div>
+        </div>
+        <div style="margin-top:auto;opacity:.8;font-size:12.5px;color:#5b6b7d">Tip: Press the Windows key to toggle Start.</div>
+      </div>
+    </div>
+
+    <!-- Windows (dynamic container) -->
+    <div id="winLayer"></div>
+
+    <!-- Context Menu -->
+    <div class="ctx" id="ctxMenu">
+      <div class="row click" data-open="settings">Personalize</div>
+      <div class="row" id="refresh">Refresh</div>
+      <div class="row" id="viewicons">View → Large Icons</div>
+    </div>
+
+    <!-- Taskbar -->
+    <div class="taskbar">
+      <div class="task-left">
+        <div class="btn start-btn" id="startBtn" title="Start">
+          <svg viewBox="0 0 24 24"><path d="M3 4l8-2v9l-8 .5V4zm18-2l-9 2v7l9-.5V2zM3 13l8-.5v9l-8-2v-6.5zm18-1.5l-9 .5v7l9 2v-9.5z"/></svg>
+        </div>
+      </div>
+      <div class="task-center">
+        <div class="search"><svg viewBox="0 0 24 24"><path d="M10 4a6 6 0 104.472 10.056l4.736 4.736 1.414-1.414-4.736-4.736A6 6 0 0010 4z"/></svg><input placeholder="Type here to search" /></div>
+        <div id="tasks" style="display:flex;gap:6px"></div>
+      </div>
+      <div class="task-right tray">
+        <div class="btn" title="Network">📶</div>
+        <div class="btn" title="Volume">🔊</div>
+        <div class="btn" title="Battery">🔋</div>
+        <div class="clock" id="clock"></div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+(function(){
+  const desktop = document.getElementById('desktop');
+  const startBtn = document.getElementById('startBtn');
+  const startMenu = document.getElementById('startMenu');
+  const ctxMenu = document.getElementById('ctxMenu');
+  const tasks = document.getElementById('tasks');
+  const winLayer = document.getElementById('winLayer');
+
+  // Clock
+  function tick(){
+    const now=new Date();
+    const d=now.toLocaleDateString(undefined,{day:'2-digit',month:'short'});
+    const t=now.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('clock').innerHTML=t+"<br>"+d;
+  }
+  setInterval(tick,1000); tick();
+
+  // Start menu toggle
+  const toggleStart = (force) => {
+    const willOpen = force!==undefined ? force : !startMenu.classList.contains('open');
+    startMenu.classList.toggle('open', willOpen);
+    startMenu.setAttribute('aria-hidden', String(!willOpen));
+  };
+  startBtn.addEventListener('click', e=>{e.stopPropagation(); toggleStart();});
+
+  // Close start when clicking desktop or opening windows
+  desktop.addEventListener('click', e=>{
+    if(!startMenu.contains(e.target) && e.target!==startBtn){toggleStart(false);}  
+    ctxMenu.style.display='none';
+  });
+
+  // Keyboard: Win key opens Start, Esc closes menus
+  window.addEventListener('keydown', e=>{
+    if(e.key==='Meta' || e.key==='OS'){toggleStart();}
+    if(e.key==='Escape'){toggleStart(false); ctxMenu.style.display='none';}
+  });
+
+  // Context menu on desktop
+  desktop.addEventListener('contextmenu', e=>{
+    e.preventDefault();
+    if(e.target.closest('.window')) return;
+    ctxMenu.style.display='block';
+    const x=Math.min(e.clientX, window.innerWidth-200), y=Math.min(e.clientY, window.innerHeight-160);
+    ctxMenu.style.left=x+'px'; ctxMenu.style.top=y+'px';
+  });
+
+  document.getElementById('refresh').onclick=()=>{ctxMenu.style.display='none'};
+
+  // Open apps from icons, tiles and app list
+  document.querySelectorAll('.click').forEach(el=>{
+    el.addEventListener('dblclick', tryOpen);
+    el.addEventListener('click', e=>{
+      if(el.closest('.start') || el.closest('.ctx')) tryOpen(e);
+    });
+  });
+
+  function tryOpen(e){
+    const id = e.currentTarget.getAttribute('data-open');
+    if(!id) return;
+    toggleStart(false); ctxMenu.style.display='none';
+    openWindow(id);
+  }
+
+  // Window manager state
+  const ZBASE=100;
+  let z=ZBASE;
+  const windows = new Map(); // id -> {el, task}
+
+  function focusWindow(el){
+    z++; el.style.zIndex=z;
+    const id=el.dataset.winId;
+    const w = windows.get(id);
+    tasks.querySelectorAll('.task-item').forEach(t=>t.classList.remove('active'));
+    if(w?.task) w.task.classList.add('active');
+  }
+
+  function createTask(id, title){
+    let item=document.createElement('div');
+    item.className='task-item';
+    item.innerHTML=`<img alt="" src="data:image/svg+xml,${encodeURIComponent('<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'><rect width=\'16\' height=\'12\' y=\'2\' rx=\'2\' ry=\'2\' fill=\'#2d67b3\'/></svg>')}"/><span>${title}</span>`;
+    item.onclick=()=>{
+      const w=windows.get(id);
+      if(!w) return;
+      const visible = w.el.style.display!=="none";
+      if(visible){
+        w.el.style.display='none';
+        item.classList.remove('active');
+      } else {
+        w.el.style.display='';
+        focusWindow(w.el);
+      }
+    };
+    tasks.appendChild(item);return item;
+  }
+
+  function openWindow(id){
+    if(windows.has(id)){
+      const {el}=windows.get(id); el.style.display=''; focusWindow(el); return;
+    }
+    const conf = APP_DEFS[id]; if(!conf) return;
+    const el = document.createElement('div');
+    el.className='window'; el.dataset.winId=id;
+    el.style.left = (80 + Math.random()*120) + 'px';
+    el.style.top  = (60 + Math.random()*80) + 'px';
+    el.innerHTML = renderWindowHTML(conf.title, conf.icon, conf.body());
+    winLayer.appendChild(el);
+
+    const btnMin = el.querySelector('.wc.min');
+    const btnMax = el.querySelector('.wc.max');
+    const btnClose = el.querySelector('.wc.close');
+
+    btnMin.onclick=()=>{ el.style.display='none'; windows.get(id).task.classList.remove('active'); };
+    btnClose.onclick=()=>{ closeWindow(id); };
+    btnMax.onclick=()=>{ el.classList.toggle('max'); if(el.classList.contains('max')) maximize(el); else restore(el); };
+
+    enableDrag(el);
+
+    const task = createTask(id, conf.title);
+
+    windows.set(id,{el, task, title:conf.title});
+    focusWindow(el);
+
+    // Initialize app if it needs setup (e.g., Snake)
+    if(id==='snake') initSnake();
+  }
+
+  function closeWindow(id){
+    const w = windows.get(id); if(!w) return;
+    w.el.remove(); w.task.remove(); windows.delete(id);
+  }
+
+  function renderWindowHTML(title, icon, bodyHTML){
+    return `
+      <div class="titlebar">
+        <img class="icon" alt="" src="data:image/svg+xml,${encodeURIComponent(icon)}"/>
+        <div class="title">${title}</div>
+        <div class="win-controls">
+          <div class="wc min" title="Minimize">&#x2212;</div>
+          <div class="wc max" title="Maximize">&#x25A1;</div>
+          <div class="wc close" title="Close">&#x2715;</div>
+        </div>
+      </div>
+      <div class="content">${bodyHTML}</div>
+      <div class="statusbar">Ready</div>
+    `;
+  }
+
+  function maximize(el){
+    el.dataset.prev = JSON.stringify({left:el.style.left, top:el.style.top, width:el.style.width, height:el.style.height});
+    el.style.left='10px'; el.style.top='10px'; el.style.width=(window.innerWidth-20)+'px'; el.style.height=(window.innerHeight-80)+'px';
+  }
+  function restore(el){
+    const p=JSON.parse(el.dataset.prev||'{}');
+    el.style.left=p.left||'80px'; el.style.top=p.top||'60px'; el.style.width=p.width||'700px'; el.style.height=p.height||'440px';
+  }
+
+  function enableDrag(win){
+    const bar = win.querySelector('.titlebar');
+    let sx=0, sy=0, ox=0, oy=0, dragging=false;
+    bar.addEventListener('mousedown', (e)=>{
+      if(win.classList.contains('max')) return;
+      dragging=true; focusWindow(win);
+      sx=e.clientX; sy=e.clientY;
+      ox=parseInt(win.style.left)||win.getBoundingClientRect().left; 
+      oy=parseInt(win.style.top)||win.getBoundingClientRect().top;
+      document.body.style.cursor='grabbing';
+    });
+    window.addEventListener('mousemove', (e)=>{
+      if(!dragging) return;
+      const nx=ox + (e.clientX - sx);
+      const ny=oy + (e.clientY - sy);
+      win.style.left=Math.max(0, Math.min(window.innerWidth-120, nx))+'px';
+      win.style.top=Math.max(0, Math.min(window.innerHeight-120, ny))+'px';
+    });
+    window.addEventListener('mouseup', ()=>{ dragging=false; document.body.style.cursor=''; });
+    win.addEventListener('mousedown', ()=>focusWindow(win));
+  }
+
+  // Icons
+  const ICON_FILE = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='12' y='2' rx='2' ry='2' fill='#2d67b3'/></svg>`;
+  const ICON_NOTE = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M4 1h6l4 4v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2z' fill='#ffd770'/></svg>`;
+  const ICON_GEAR = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='3' fill='#2d67b3'/><path d='M14 9l2-1-2-1-.6-1.4 1.4-1.4-1.4-1.4L11 3 10 1 8 2 6 1 5 3 2.6 2.8 1.2 4.2 2.6 5.6 2 7 0 8l2 1 .6 1.4-1.4 1.4 1.4 1.4L5 13l1 2 2-1 2 1 1-2 2.4.2 1.4-1.4-1.4-1.4L14 9z' fill='#8fb3ff' opacity='.6'/></svg>`;
+  const ICON_INFO = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='7' fill='#2d67b3'/><rect x='7' y='7' width='2' height='6' rx='1' fill='#ffffff'/><rect x='7' y='3' width='2' height='2' rx='1' fill='#ffffff'/></svg>`;
+  const ICON_SNAKE = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M3 8c0-3 3-4.5 5-4.5s5 1.5 5 4.5-3 4.5-5 4.5-5-1.5-5-4.5z' fill='#2d67b3'/><circle cx='8' cy='8' r='2.2' fill='#1a2637'/></svg>`;
+
+  const APP_DEFS = {
+    explorer:{
+      title:'File Explorer',
+      icon: ICON_FILE,
+      body:()=>`
+        <div class='explorer'>
+          <div class='nav'>
+            <h4>Quick access</h4>
+            <div class='nitem'>Desktop</div>
+            <div class='nitem'>Downloads</div>
+            <div class='nitem'>Documents</div>
+            <div class='nitem'>Pictures</div>
+            <h4>Devices & drives</h4>
+            <div class='nitem'>Local Disk (C:)</div>
+            <div class='nitem'>Data (D:)</div>
+          </div>
+          <div class='files'>
+            ${Array.from({length:10}).map((_,i)=>`<div class='file'><div>📄</div><span>File ${i+1}.txt</span></div>`).join('')}
+            <div class='file'><div>📁</div><span>Projects</span></div>
+            <div class='file'><div>🖼️</div><span>Wallpaper.png</span></div>
+          </div>
+        </div>`
+    },
+    notes:{
+      title:'Notes',
+      icon: ICON_NOTE,
+      body:()=>`<div class='notes' style='height:100%'><textarea placeholder='Write your notes here...\nTip: Use the taskbar button to minimize/restore.'></textarea></div>`
+    },
+    snake:{
+      title:'Snake',
+      icon: ICON_SNAKE,
+      body:()=>`
+        <div style='display:grid;grid-template-rows:auto 1fr;gap:10px;height:100%'>
+          <div style='display:flex;align-items:center;gap:10px'>
+            <button class='btn' id='snakeStart' title='Start / Restart'>Start</button>
+            <button class='btn' id='snakePause' title='Pause'>Pause</button>
+            <div style='margin-left:auto;font-weight:600'>Score: <span id='snakeScore'>0</span></div>
+          </div>
+          <canvas id='snakeCanvas' width='420' height='420' style='width:100%;max-width:520px;justify-self:start;border:1px solid var(--line);border-radius:8px;background:#fff'></canvas>
+          <div style='font-size:12.5px;color:var(--muted)'>Use arrow keys to move. Hitting yourself resets the game. Wrap-around is enabled.</div>
+        </div>`
+    },
+    settings:{
+      title:'Settings',
+      icon: ICON_GEAR,
+      body:()=>`
+        <div class='settings'>
+          <div class='side'>
+            <div class='opt'>System</div>
+            <div class='opt'>Personalization</div>
+            <div class='opt'>Network & Internet</div>
+            <div class='opt'>Update & Security</div>
+          </div>
+          <div class='panel'>
+            <h2 style='margin:0 0 10px'>Personalization</h2>
+            <p>Choose an accent color:</p>
+            <div style='display:flex;gap:8px;flex-wrap:wrap'>
+              ${['#0078d7','#ff3b30','#ffb020','#22c55e','#7c3aed','#00d9ff'].map(c=>`<div class='sw' data-color='${c}' style='width:26px;height:26px;border-radius:6px;border:1px solid var(--line);background:${c};cursor:pointer'></div>`).join('')}
+            </div>
+            <p style='margin-top:14px'>Wallpaper style:</p>
+            <div style='display:flex;gap:8px;flex-wrap:wrap'>
+              <button class='btn wall' data-wall='blue'>Blue Light</button>
+              <button class='btn wall' data-wall='violet'>Violet Light</button>
+              <button class='btn wall' data-wall='sunset'>Sunset Light</button>
+            </div>
+          </div>
+        </div>`
+    },
+    about:{
+      title:'About Windows (HTML Edition)',
+      icon: ICON_INFO,
+      body:()=>`
+        <div style='display:grid;place-items:start;gap:10px'>
+          <h2 style='margin:0'>Windows 10 – Light Mode in Your Browser</h2>
+          <p style='opacity:.9;max-width:720px'>Solid, non-transparent UI. Includes taskbar, Start menu, draggable windows, live clock, mock apps, and a built-in 2D Snake game.</p>
+          <ul style='margin:0 0 6px 18px;line-height:1.6'>
+            <li>Press the Windows key to toggle Start</li>
+            <li>Drag windows by the title bar, use □ to maximize</li>
+            <li>Minimize/restore via the taskbar buttons</li>
+            <li>Right-click the desktop for a context menu</li>
+            <li>Change accent color & wallpaper in Settings → Personalization</li>
+          </ul>
+          <div style='opacity:.7;font-size:12.5px'>Made for demo/learning purposes.</div>
+        </div>`
+    }
+  };
+
+  // Personalization (accent + wallpaper)
+  function applyAccent(c){
+    document.documentElement.style.setProperty('--accent', c);
+    document.documentElement.style.setProperty('--accent-2', shade(c, -12));
+  }
+  function shade(hex, amt){
+    let c = hex.replace('#',''); if(c.length===3) c=c.split('').map(x=>x+x).join('');
+    let [r,g,b]=[parseInt(c.substr(0,2),16),parseInt(c.substr(2,2),16),parseInt(c.substr(4,2),16)];
+    const s = v=>Math.max(0, Math.min(255, v+Math.round(255*amt/100)));
+    return '#'+[s(r),s(g),s(b)].map(v=>v.toString(16).padStart(2,'0')).join('');
+  }
+  function setWall(kind){
+    const d=desktop;
+    if(kind==='violet'){
+      d.style.background = `radial-gradient(1100px 760px at 80% 15%, #f4eaff 0%, #f6f0ff 40%, #fbfbff 80%),
+                            radial-gradient(900px 600px at 15% 85%, #efe7ff 0%, #faf7ff 50%, #ffffff 100%)`;
+    } else if(kind==='sunset'){
+      d.style.background = `radial-gradient(1200px 800px at 70% 20%, #fff1e8 0%, #ffe3ef 40%, #f6f2ff 70%, #ffffff 100%),
+                            radial-gradient(900px 700px at 20% 80%, #fff7d6 0%, #ffe2f2 40%, #f2edff 70%, #ffffff 100%)`;
+    } else {
+      d.style.background = `radial-gradient(1200px 800px at 80% 20%, #eef4ff 0%, #eaf2ff 35%, #e7f0fe 60%, #eaf1ff 100%),
+                            radial-gradient(900px 600px at 15% 80%, #ffffff 0%, #f7fbff 45%, #eef5ff 80%)`;
+    }
+  }
+
+  const observer = new MutationObserver(()=>{
+    document.querySelectorAll('.sw').forEach(el=>{ el.onclick=()=>applyAccent(el.dataset.color); });
+    document.querySelectorAll('.wall').forEach(el=>{ el.onclick=()=>setWall(el.dataset.wall); });
+  });
+  observer.observe(winLayer,{childList:true, subtree:true});
+
+  // ---- Snake game implementation ----
+  function initSnake(){
+    const canvas=document.getElementById('snakeCanvas');
+    if(!canvas) return; // safety
+    const ctx=canvas.getContext('2d');
+    const grid=20;           // cell size
+    let count=0;             // speed throttling
+    let score=0;
+    let paused=true;
+    let dx=grid, dy=0;       // initial direction: right
+    let snake=[{x:160,y:160},{x:140,y:160},{x:120,y:160}];
+    let apple=randomApple();
+
+    function randomApple(){
+      return {x: Math.floor(Math.random() * (canvas.width / grid)) * grid,
+              y: Math.floor(Math.random() * (canvas.height / grid)) * grid};
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      // snake
+      ctx.fillStyle = '#34a853';
+      snake.forEach(p=>ctx.fillRect(p.x, p.y, grid-1, grid-1));
+      // apple
+      ctx.fillStyle = '#ea4335';
+      ctx.fillRect(apple.x, apple.y, grid-1, grid-1);
+    }
+
+    function step(){
+      if(paused) return;
+      requestAnimationFrame(step);
+      if(++count < 4) return; // speed (lower is faster)
+      count=0;
+
+      const head = {x: (snake[0].x + dx + canvas.width) % canvas.width,
+                    y: (snake[0].y + dy + canvas.height) % canvas.height};
+      snake.unshift(head);
+
+      // apple eaten
+      if(head.x===apple.x && head.y===apple.y){
+        score++;
+        const sEl=document.getElementById('snakeScore'); if(sEl) sEl.textContent=String(score);
+        apple=randomApple();
+      } else {
+        snake.pop();
+      }
+
+      // self collision
+      for(let i=1;i<snake.length;i++){
+        if(snake[i].x===head.x && snake[i].y===head.y){
+          reset();
+          break;
+        }
+      }
+
+      draw();
+    }
+
+    function reset(){
+      score=0; const sEl=document.getElementById('snakeScore'); if(sEl) sEl.textContent='0';
+      dx=grid; dy=0;
+      snake=[{x:160,y:160},{x:140,y:160},{x:120,y:160}];
+      apple=randomApple();
+      draw();
+    }
+
+    // controls
+    const startBtn=document.getElementById('snakeStart');
+    const pauseBtn=document.getElementById('snakePause');
+    startBtn.onclick=()=>{ reset(); paused=false; requestAnimationFrame(step); };
+    pauseBtn.onclick=()=>{ paused=true; };
+
+    window.addEventListener('keydown', e=>{
+      switch(e.key){
+        case 'ArrowLeft': if(dx===0){dx=-grid; dy=0;} break;
+        case 'ArrowUp': if(dy===0){dy=-grid; dx=0;} break;
+        case 'ArrowRight': if(dx===0){dx=grid; dy=0;} break;
+        case 'ArrowDown': if(dy===0){dy=grid; dx=0;} break;
+      }
+    });
+
+    // initial paint
+    draw();
+  }
+
+  // Autostart About window
+  setTimeout(()=>openWindow('about'), 400);
+
+})();
+</script>
+</body>
+</html>
